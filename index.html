@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Wellness Evaluation Task Manager</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBNGWGQMRSHr-2-i2YN6R12Uj4XhbKBolI",
+            authDomain: "wellness-student.firebaseapp.com",
+            databaseURL: "https://wellness-student-default-rtdb.firebaseio.com",
+            projectId: "wellness-student",
+            storageBucket: "wellness-student.firebasestorage.app",
+            messagingSenderId: "63000652168",
+            appId: "1:63000652168:web:adceba5425f5acb4a7f23d",
+            measurementId: "G-KDY4D8TPR5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        
+        window.firebaseDB = database;
+        window.firebaseRef = ref;
+        window.firebaseSet = set;
+        window.firebasePush = push;
+        window.firebaseOnValue = onValue;
+        window.firebaseRemove = remove;
+        window.firebaseUpdate = update;
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Plus = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        );
+
+        const X = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        );
+
+        const ExternalLink = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+        );
+
+        const Calendar = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        );
+
+        const User = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        );
+
+        const Flag = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line>
+            </svg>
+        );
+
+        const FileText = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+        );
+
+        const Edit2 = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+            </svg>
+        );
+
+        const Trash2 = ({ size = 24 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+        );
+
+        const EvaluationTaskManager = () => {
+            const [tasks, setTasks] = useState([]);
+            const [showAddTask, setShowAddTask] = useState(false);
+            const [filter, setFilter] = useState('all');
+            const [phaseFilter, setPhaseFilter] = useState('all');
+            const [assigneeFilter, setAssigneeFilter] = useState('all');
+            const [editingTask, setEditingTask] = useState(null);
+            const [loading, setLoading] = useState(true);
+            
+            const phases = ['Planning & Design', 'Data Collection', 'Analysis', 'Reporting & Dissemination', 'Stakeholder Engagement'];
+            const priorities = ['High', 'Medium', 'Low'];
+            const statuses = ['Not Started', 'In Progress', 'Completed'];
+            const teamMembers = ['Alexa', 'Dillon', 'Lindsey', 'Carson', 'Kyle', 'StudentWellness Team'];
+            
+            const [newTask, setNewTask] = useState({
+                title: '', description: '', phase: phases[0], priority: 'Medium', status: 'Not Started', 
+                dueDate: '', assignedTo: '', links: [], notes: ''
+            });
+            
+            const [linkForm, setLinkForm] = useState({ name: '', url: '' });
+
+            useEffect(() => {
+                const tasksRef = window.firebaseRef(window.firebaseDB, 'tasks');
+                window.firebaseOnValue(tasksRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        setTasks(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+                    } else {
+                        setTasks([]);
+                    }
+                    setLoading(false);
+                });
+            }, []);
+
+            const addTask = () => {
+                if (newTask.title.trim()) {
+                    const newTaskRef = window.firebasePush(window.firebaseRef(window.firebaseDB, 'tasks'));
+                    window.firebaseSet(newTaskRef, newTask);
+                    resetForm();
+                    setShowAddTask(false);
+                }
+            };
+
+            const updateTask = () => {
+                const { id, ...taskData } = editingTask;
+                window.firebaseUpdate(window.firebaseRef(window.firebaseDB, `tasks/${id}`), taskData);
+                setEditingTask(null);
+            };
+
+            const deleteTask = (id) => window.firebaseRemove(window.firebaseRef(window.firebaseDB, `tasks/${id}`));
+
+            const resetForm = () => {
+                setNewTask({ title: '', description: '', phase: phases[0], priority: 'Medium', status: 'Not Started', dueDate: '', assignedTo: '', links: [], notes: '' });
+                setLinkForm({ name: '', url: '' });
+            };
+
+            const addLink = (taskData, setTaskData) => {
+                if (linkForm.name.trim() && linkForm.url.trim()) {
+                    setTaskData({ ...taskData, links: [...taskData.links, { ...linkForm, id: Date.now() }] });
+                    setLinkForm({ name: '', url: '' });
+                }
+            };
+
+            const removeLink = (taskData, setTaskData, linkId) => {
+                setTaskData({ ...taskData, links: taskData.links.filter(link => link.id !== linkId) });
+            };
+
+            const getProgressByPhase = (phase) => {
+                const phaseTasks = tasks.filter(task => task.phase === phase);
+                return phaseTasks.length === 0 ? 0 : Math.round((phaseTasks.filter(t => t.status === 'Completed').length / phaseTasks.length) * 100);
+            };
+
+            const getOverallProgress = () => {
+                return tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'Completed').length / tasks.length) * 100);
+            };
+
+            const filteredTasks = tasks.filter(task => {
+                return (filter === 'all' || task.status === filter) && 
+                       (phaseFilter === 'all' || task.phase === phaseFilter) && 
+                       (assigneeFilter === 'all' || task.assignedTo === assigneeFilter);
+            });
+
+            const getPriorityColor = (priority) => {
+                const colors = { 'High': 'text-red-600 bg-red-50 border-red-200', 'Medium': 'text-yellow-600 bg-yellow-50 border-yellow-200', 'Low': 'text-green-600 bg-green-50 border-green-200' };
+                return colors[priority] || 'text-gray-600 bg-gray-50 border-gray-200';
+            };
+
+            const getStatusColor = (status) => {
+                const colors = { 'Completed': 'text-green-700 bg-green-100', 'In Progress': 'text-blue-700 bg-blue-100', 'Not Started': 'text-gray-700 bg-gray-100' };
+                return colors[status] || 'text-gray-700 bg-gray-100';
+            };
+
+            const TaskForm = ({ taskData, setTaskData, onSubmit, onCancel, submitLabel }) => (
+                <div className="bg-white p-6 rounded-lg border-2 border-blue-200 mb-4">
+                    <input type="text" placeholder="Task Title" value={taskData.title} onChange={(e) => setTaskData({ ...taskData, title: e.target.value })} className="w-full p-2 mb-3 border rounded" />
+                    <textarea placeholder="Description" value={taskData.description} onChange={(e) => setTaskData({ ...taskData, description: e.target.value })} className="w-full p-2 mb-3 border rounded h-20" />
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div><label className="block text-sm font-medium mb-1">Phase</label>
+                            <select value={taskData.phase} onChange={(e) => setTaskData({ ...taskData, phase: e.target.value })} className="w-full p-2 border rounded">
+                                {phases.map(phase => <option key={phase} value={phase}>{phase}</option>)}
+                            </select>
+                        </div>
+                        <div><label className="block text-sm font-medium mb-1">Priority</label>
+                            <select value={taskData.priority} onChange={(e) => setTaskData({ ...taskData, priority: e.target.value })} className="w-full p-2 border rounded">
+                                {priorities.map(priority => <option key={priority} value={priority}>{priority}</option>)}
+                            </select>
+                        </div>
+                        <div><label className="block text-sm font-medium mb-1">Status</label>
+                            <select value={taskData.status} onChange={(e) => setTaskData({ ...taskData, status: e.target.value })} className="w-full p-2 border rounded">
+                                {statuses.map(status => <option key={status} value={status}>{status}</option>)}
+                            </select>
+                        </div>
+                        <div><label className="block text-sm font-medium mb-1">Due Date</label>
+                            <input type="date" value={taskData.dueDate} onChange={(e) => setTaskData({ ...taskData, dueDate: e.target.value })} className="w-full p-2 border rounded" />
+                        </div>
+                    </div>
+                    <div className="mb-3"><label className="block text-sm font-medium mb-1">Assigned To</label>
+                        <select value={taskData.assignedTo} onChange={(e) => setTaskData({ ...taskData, assignedTo: e.target.value })} className="w-full p-2 border rounded">
+                            <option value="">Select team member...</option>
+                            {teamMembers.map(member => <option key={member} value={member}>{member}</option>)}
+                        </select>
+                    </div>
+                    <div className="mb-3"><label className="block text-sm font-medium mb-2">Attached Links</label>
+                        <div className="flex gap-2 mb-2">
+                            <input type="text" placeholder="Link name" value={linkForm.name} onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })} className="flex-1 p-2 border rounded" />
+                            <input type="text" placeholder="URL" value={linkForm.url} onChange={(e) => setLinkForm({ ...linkForm, url: e.target.value })} className="flex-1 p-2 border rounded" />
+                            <button onClick={() => addLink(taskData, setTaskData)} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-1">
+                                <Plus size={16} /> Add
+                            </button>
+                        </div>
+                        {taskData.links && taskData.links.length > 0 && (
+                            <div className="space-y-1">
+                                {taskData.links.map(link => (
+                                    <div key={link.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                                        <ExternalLink size={14} />
+                                        <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex-1">{link.name}</a>
+                                        <button onClick={() => removeLink(taskData, setTaskData, link.id)} className="text-red-500 hover:text-red-700"><X size={16} /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="mb-3"><label className="block text-sm font-medium mb-1">Notes</label>
+                        <textarea placeholder="Additional notes" value={taskData.notes} onChange={(e) => setTaskData({ ...taskData, notes: e.target.value })} className="w-full p-2 border rounded h-16" />
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={onSubmit} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">{submitLabel}</button>
+                        <button onClick={onCancel} className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Cancel</button>
+                    </div>
+                </div>
+            );
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+                        <div className="text-center"><div className="text-2xl font-bold text-blue-600 mb-2">Loading tasks...</div></div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <h1 className="text-3xl font-bold text-gray-800 mb-2">Student Wellness Program Evaluation</h1>
+                            <p className="text-gray-600 mb-4">Task Manager - Team Collaboration Enabled 🔥</p>
+                            <div className="bg-blue-50 p-4 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="font-semibold text-gray-700">Overall Progress</span>
+                                    <span className="text-2xl font-bold text-blue-600">{getOverallProgress()}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-4">
+                                    <div className="bg-blue-600 h-4 rounded-full transition-all duration-300" style={{ width: `${getOverallProgress()}%` }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-3 mb-6">
+                            {phases.map(phase => (
+                                <div key={phase} className="bg-white p-4 rounded-lg shadow">
+                                    <h3 className="font-semibold text-sm mb-2 text-gray-700">{phase}</h3>
+                                    <div className="text-2xl font-bold text-indigo-600 mb-1">{getProgressByPhase(phase)}%</div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div className="bg-indigo-600 h-2 rounded-full transition-all duration-300" style={{ width: `${getProgressByPhase(phase)}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <div className="flex gap-4 items-center mb-4">
+                                <button onClick={() => setShowAddTask(!showAddTask)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                                    <Plus size={20} /> Add New Task
+                                </button>
+                                <div className="flex gap-2 flex-1">
+                                    <select value={filter} onChange={(e) => setFilter(e.target.value)} className="p-2 border rounded">
+                                        <option value="all">All Statuses</option>
+                                        {statuses.map(status => <option key={status} value={status}>{status}</option>)}
+                                    </select>
+                                    <select value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)} className="p-2 border rounded">
+                                        <option value="all">All Phases</option>
+                                        {phases.map(phase => <option key={phase} value={phase}>{phase}</option>)}
+                                    </select>
+                                    <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className="p-2 border rounded">
+                                        <option value="all">All Team Members</option>
+                                        {teamMembers.map(member => <option key={member} value={member}>{member}</option>)}
+                                    </select>
+                                </div>
+                                <div className="text-sm text-gray-600">Showing {filteredTasks.length} of {tasks.length} tasks</div>
+                            </div>
+                            {showAddTask && <TaskForm taskData={newTask} setTaskData={setNewTask} onSubmit={addTask} onCancel={() => { setShowAddTask(false); resetForm(); }} submitLabel="Add Task" />}
+                        </div>
+
+                        <div className="space-y-4">
+                            {filteredTasks.length === 0 ? (
+                                <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                                    <FileText size={48} className="mx-auto mb-4 text-gray-300" />
+                                    <p>No tasks found. Click "Add New Task" to get started!</p>
+                                </div>
+                            ) : (
+                                filteredTasks.map(task => (
+                                    <div key={task.id} className="bg-white rounded-lg shadow-md p-6">
+                                        {editingTask && editingTask.id === task.id ? (
+                                            <TaskForm taskData={editingTask} setTaskData={setEditingTask} onSubmit={updateTask} onCancel={() => setEditingTask(null)} submitLabel="Save Changes" />
+                                        ) : (
+                                            <>
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex-1">
+                                                        <h3 className="text-xl font-semibold text-gray-800 mb-2">{task.title}</h3>
+                                                        <p className="text-gray-600 mb-3">{task.description}</p>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => setEditingTask(task)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={18} /></button>
+                                                        <button onClick={() => deleteTask(task.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={18} /></button>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-4 gap-4 mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Flag size={16} />
+                                                        <span className={`px-2 py-1 rounded text-sm border ${getPriorityColor(task.priority)}`}>{task.priority}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-3 py-1 rounded text-sm ${getStatusColor(task.status)}`}>{task.status}</span>
+                                                    </div>
+                                                    {task.dueDate && (
+                                                        <div className="flex items-center gap-2 text-gray-600">
+                                                            <Calendar size={16} /><span className="text-sm">{new Date(task.dueDate).toLocaleDateString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {task.assignedTo && (
+                                                        <div className="flex items-center gap-2 text-gray-600">
+                                                            <User size={16} /><span className="text-sm">{task.assignedTo}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-sm text-gray-500 mb-3">Phase: <span className="font-medium text-indigo-600">{task.phase}</span></div>
+                                                {task.links && task.links.length > 0 && (
+                                                    <div className="mb-3">
+                                                        <div className="text-sm font-medium text-gray-700 mb-2">Attached Documents:</div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {task.links.map(link => (
+                                                                <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 text-sm">
+                                                                    <ExternalLink size={14} />{link.name}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {task.notes && (
+                                                    <div className="mt-3 p-3 bg-gray-50 rounded">
+                                                        <div className="text-sm font-medium text-gray-700 mb-1">Notes:</div>
+                                                        <div className="text-sm text-gray-600">{task.notes}</div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<EvaluationTaskManager />, document.getElementById('root'));
+    </script>
+</body>
+</html>
