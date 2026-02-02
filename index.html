@@ -87,6 +87,14 @@
                 return tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'Completed').length / tasks.length) * 100);
             };
 
+            const getInProgressPercent = () => {
+                return tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'In Progress').length / tasks.length) * 100);
+            };
+
+            const getNotStartedPercent = () => {
+                return tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'Not Started').length / tasks.length) * 100);
+            };
+
             const filter = window.appState.statusFilter || 'all';
             const phaseFilter = window.appState.phaseFilter || 'all';
             const assigneeFilter = window.appState.assigneeFilter || 'all';
@@ -103,13 +111,36 @@
                         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                             <h1 class="text-3xl font-bold text-gray-800 mb-2">Student Wellness Program Evaluation</h1>
                             <p class="text-gray-600 mb-4">Task Manager - Team Collaboration Enabled 🔥</p>
-                            <div class="bg-blue-50 p-4 rounded-lg">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="font-semibold text-gray-700">Overall Progress</span>
-                                    <span class="text-2xl font-bold text-blue-600">${getOverallProgress()}%</span>
+                            
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold text-gray-700">Completed</span>
+                                        <span class="text-2xl font-bold text-green-600">${getOverallProgress()}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <div class="bg-green-600 h-3 rounded-full transition-all duration-300" style="width: ${getOverallProgress()}%"></div>
+                                    </div>
                                 </div>
-                                <div class="w-full bg-gray-200 rounded-full h-4">
-                                    <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: ${getOverallProgress()}%"></div>
+                                
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold text-gray-700">In Progress</span>
+                                        <span class="text-2xl font-bold text-blue-600">${getInProgressPercent()}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: ${getInProgressPercent()}%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold text-gray-700">Not Started</span>
+                                        <span class="text-2xl font-bold text-gray-600">${getNotStartedPercent()}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <div class="bg-gray-600 h-3 rounded-full transition-all duration-300" style="width: ${getNotStartedPercent()}%"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -286,6 +317,23 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label class="block text-sm font-medium mb-2">Attached Links</label>
+                        <div class="flex gap-2 mb-2">
+                            <input type="text" id="edit-link-name-${task.id}" placeholder="Link name (e.g., Survey Draft)" class="flex-1 p-2 border rounded" />
+                            <input type="text" id="edit-link-url-${task.id}" placeholder="URL" class="flex-1 p-2 border rounded" />
+                            <button class="add-link px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" data-task-id="${task.id}">Add Link</button>
+                        </div>
+                        <div id="edit-links-list-${task.id}" class="space-y-1">
+                            ${task.links && task.links.length > 0 ? task.links.map(link => `
+                                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded" data-link-id="${link.id}">
+                                    <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
+                                    <button class="remove-link text-red-500 hover:text-red-700" data-task-id="${task.id}" data-link-id="${link.id}">✕</button>
+                                </div>
+                            `).join('') : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label class="block text-sm font-medium mb-1">Notes</label>
                         <textarea id="edit-notes-${task.id}" placeholder="Additional notes" class="w-full p-2 border rounded h-16">${task.notes || ''}</textarea>
                     </div>
@@ -364,6 +412,16 @@
                     renderApp();
                 };
             });
+
+            // Add link buttons
+            document.querySelectorAll('.add-link').forEach(btn => {
+                btn.onclick = () => addLinkToTask(btn.dataset.taskId);
+            });
+
+            // Remove link buttons
+            document.querySelectorAll('.remove-link').forEach(btn => {
+                btn.onclick = () => removeLinkFromTask(btn.dataset.taskId, btn.dataset.linkId);
+            });
         }
 
         function showAddTaskForm() {
@@ -414,6 +472,16 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label class="block text-sm font-medium mb-2">Attached Links</label>
+                        <div class="flex gap-2 mb-2">
+                            <input type="text" id="new-link-name" placeholder="Link name (e.g., Survey Draft)" class="flex-1 p-2 border rounded" />
+                            <input type="text" id="new-link-url" placeholder="URL" class="flex-1 p-2 border rounded" />
+                            <button id="add-new-link" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Link</button>
+                        </div>
+                        <div id="new-links-list" class="space-y-1"></div>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label class="block text-sm font-medium mb-1">Notes</label>
                         <textarea id="new-notes" placeholder="Additional notes" class="w-full p-2 border rounded h-16"></textarea>
                     </div>
@@ -427,11 +495,49 @@
             
             document.getElementById('addTaskForm').innerHTML = formHTML;
             
+            window.appState.newTaskLinks = [];
+            
+            document.getElementById('add-new-link').onclick = () => addNewTaskLink();
             document.getElementById('save-new-task').onclick = () => saveNewTask();
             document.getElementById('cancel-new-task').onclick = () => {
                 window.appState.isEditing = false;
+                window.appState.newTaskLinks = [];
                 document.getElementById('addTaskForm').innerHTML = '';
             };
+        }
+
+        function addNewTaskLink() {
+            const linkName = document.getElementById('new-link-name').value.trim();
+            const linkUrl = document.getElementById('new-link-url').value.trim();
+            
+            if (linkName && linkUrl) {
+                const newLink = { id: Date.now(), name: linkName, url: linkUrl };
+                window.appState.newTaskLinks.push(newLink);
+                
+                document.getElementById('new-link-name').value = '';
+                document.getElementById('new-link-url').value = '';
+                
+                updateNewLinksDisplay();
+            } else {
+                alert('Please enter both link name and URL');
+            }
+        }
+
+        function updateNewLinksDisplay() {
+            const linksList = document.getElementById('new-links-list');
+            linksList.innerHTML = window.appState.newTaskLinks.map(link => `
+                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
+                    <button class="remove-new-link text-red-500 hover:text-red-700" data-link-id="${link.id}">✕</button>
+                </div>
+            `).join('');
+            
+            document.querySelectorAll('.remove-new-link').forEach(btn => {
+                btn.onclick = () => {
+                    window.appState.newTaskLinks = window.appState.newTaskLinks.filter(l => l.id !== parseInt(btn.dataset.linkId));
+                    updateNewLinksDisplay();
+                };
+            });
         }
 
         function saveNewTask() {
@@ -444,18 +550,49 @@
                 dueDate: document.getElementById('new-dueDate').value,
                 assignedTo: document.getElementById('new-assignedTo').value,
                 notes: document.getElementById('new-notes').value,
-                links: []
+                links: window.appState.newTaskLinks || []
             };
             
             if (newTask.title.trim()) {
                 const newTaskRef = window.firebasePush(window.firebaseRef(window.firebaseDB, 'tasks'));
                 window.firebaseSet(newTaskRef, newTask).then(() => {
                     window.appState.isEditing = false;
+                    window.appState.newTaskLinks = [];
                     document.getElementById('addTaskForm').innerHTML = '';
                     renderApp();
                 });
             } else {
                 alert('Please enter a task title');
+            }
+        }
+
+        function addLinkToTask(taskId) {
+            const linkName = document.getElementById(`edit-link-name-${taskId}`).value.trim();
+            const linkUrl = document.getElementById(`edit-link-url-${taskId}`).value.trim();
+            
+            if (linkName && linkUrl) {
+                const task = window.appState.tasks.find(t => t.id === taskId);
+                if (task) {
+                    const links = task.links || [];
+                    links.push({ id: Date.now(), name: linkName, url: linkUrl });
+                    
+                    const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
+                    window.firebaseUpdate(taskRef, { links: links }).then(() => {
+                        document.getElementById(`edit-link-name-${taskId}`).value = '';
+                        document.getElementById(`edit-link-url-${taskId}`).value = '';
+                    });
+                }
+            } else {
+                alert('Please enter both link name and URL');
+            }
+        }
+
+        function removeLinkFromTask(taskId, linkId) {
+            const task = window.appState.tasks.find(t => t.id === taskId);
+            if (task && task.links) {
+                const updatedLinks = task.links.filter(l => l.id !== parseInt(linkId));
+                const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
+                window.firebaseUpdate(taskRef, { links: updatedLinks });
             }
         }
 
