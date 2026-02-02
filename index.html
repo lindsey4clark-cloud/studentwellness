@@ -129,15 +129,22 @@
 
             useEffect(() => {
                 const tasksRef = window.firebaseRef(window.firebaseDB, 'tasks');
-                window.firebaseOnValue(tasksRef, (snapshot) => {
+                const unsubscribe = window.firebaseOnValue(tasksRef, (snapshot) => {
                     const data = snapshot.val();
                     if (data) {
-                        setTasks(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+                        const tasksArray = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                        setTasks(prevTasks => {
+                            if (JSON.stringify(prevTasks) !== JSON.stringify(tasksArray)) {
+                                return tasksArray;
+                            }
+                            return prevTasks;
+                        });
                     } else {
                         setTasks([]);
                     }
                     setLoading(false);
                 });
+                return () => unsubscribe();
             }, []);
 
             const addTask = () => {
