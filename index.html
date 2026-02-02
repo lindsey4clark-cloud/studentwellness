@@ -449,13 +449,19 @@
             
             if (newTask.title.trim()) {
                 const newTaskRef = window.firebasePush(window.firebaseRef(window.firebaseDB, 'tasks'));
-                window.firebaseSet(newTaskRef, newTask);
-                window.appState.isEditing = false;
-                document.getElementById('addTaskForm').innerHTML = '';
+                window.firebaseSet(newTaskRef, newTask).then(() => {
+                    window.appState.isEditing = false;
+                    document.getElementById('addTaskForm').innerHTML = '';
+                    renderApp();
+                });
+            } else {
+                alert('Please enter a task title');
             }
         }
 
         function saveTask(taskId) {
+            const task = window.appState.tasks.find(t => t.id === taskId);
+            
             const updatedTask = {
                 title: document.getElementById(`edit-title-${taskId}`).value,
                 description: document.getElementById(`edit-description-${taskId}`).value,
@@ -464,19 +470,16 @@
                 status: document.getElementById(`edit-status-${taskId}`).value,
                 dueDate: document.getElementById(`edit-dueDate-${taskId}`).value,
                 assignedTo: document.getElementById(`edit-assignedTo-${taskId}`).value,
-                notes: document.getElementById(`edit-notes-${taskId}`).value
+                notes: document.getElementById(`edit-notes-${taskId}`).value,
+                links: task && task.links ? task.links : []
             };
             
-            const task = window.appState.tasks.find(t => t.id === taskId);
-            if (task && task.links) {
-                updatedTask.links = task.links;
-            } else {
-                updatedTask.links = [];
-            }
-            
-            window.firebaseUpdate(window.firebaseRef(window.firebaseDB, `tasks/${taskId}`), updatedTask);
-            window.appState.isEditing = false;
-            window.appState.editingTaskId = null;
+            const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
+            window.firebaseSet(taskRef, updatedTask).then(() => {
+                window.appState.isEditing = false;
+                window.appState.editingTaskId = null;
+                renderApp();
+            });
         }
     </script>
 </body>
