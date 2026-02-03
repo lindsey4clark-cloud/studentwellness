@@ -108,8 +108,108 @@
                        (assigneeFilter === 'all' || task.assignedTo === assigneeFilter);
             });
 
+            const viewContent = window.appState.viewMode === 'calendar' ? generateCalendarView(filteredTasks) : generateListView(filteredTasks);
+
             return `
                 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+                    <div class="max-w-7xl mx-auto">
+                        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-2">Student Wellness Program Evaluation</h1>
+                            <p class="text-gray-600 mb-4">Task Manager - Team Collaboration Enabled 🔥</p>
+                            
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <div class="bg-green-50 p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold text-gray-700">Completed</span>
+                                        <span class="text-2xl font-bold text-green-600">${getOverallProgress()}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <div class="bg-green-600 h-3 rounded-full transition-all duration-300" style="width: ${getOverallProgress()}%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold text-gray-700">In Progress</span>
+                                        <span class="text-2xl font-bold text-blue-600">${getInProgressPercent()}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: ${getInProgressPercent()}%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold text-gray-700">Not Started</span>
+                                        <span class="text-2xl font-bold text-gray-600">${getNotStartedPercent()}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <div class="bg-gray-600 h-3 rounded-full transition-all duration-300" style="width: ${getNotStartedPercent()}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-5 gap-3 mb-6">
+                            ${phases.map(phase => `
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h3 class="font-semibold text-sm mb-2 text-gray-700">${phase}</h3>
+                                    <div class="text-2xl font-bold text-indigo-600 mb-1">${getProgressByPhase(phase)}%</div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: ${getProgressByPhase(phase)}%"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <div class="flex gap-4 items-center mb-4 flex-wrap">
+                                <button id="addTaskBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Add New Task
+                                </button>
+                                
+                                <div class="flex gap-2 bg-gray-100 p-1 rounded-lg">
+                                    <button id="listViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'list' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">
+                                        List View
+                                    </button>
+                                    <button id="calendarViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'calendar' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">
+                                        Calendar View
+                                    </button>
+                                </div>
+
+                                <div class="flex gap-2 flex-1">
+                                    <select id="statusFilter" class="p-2 border rounded">
+                                        <option value="all">All Statuses</option>
+                                        <option value="Not Started">Not Started</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                    <select id="phaseFilterSelect" class="p-2 border rounded">
+                                        <option value="all">All Phases</option>
+                                        ${phases.map(phase => `<option value="${phase}">${phase}</option>`).join('')}
+                                    </select>
+                                    <select id="assigneeFilter" class="p-2 border rounded">
+                                        <option value="all">All Team Members</option>
+                                        <option value="Alexa">Alexa</option>
+                                        <option value="Dillon">Dillon</option>
+                                        <option value="Lindsey">Lindsey</option>
+                                        <option value="Carson">Carson</option>
+                                        <option value="Kyle">Kyle</option>
+                                        <option value="StudentWellness Team">StudentWellness Team</option>
+                                    </select>
+                                </div>
+                                <div class="text-sm text-gray-600">Showing ${filteredTasks.length} of ${tasks.length} tasks</div>
+                            </div>
+                            <div id="addTaskForm"></div>
+                        </div>
+
+                        ${window.appState.viewMode === 'calendar' ? generateCalendarView(filteredTasks) : generateListView(filteredTasks)}
+                    </div>
+                </div>
+            `;
                     <div class="max-w-7xl mx-auto">
                         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                             <h1 class="text-3xl font-bold text-gray-800 mb-2">Student Wellness Program Evaluation</h1>
