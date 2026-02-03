@@ -46,7 +46,10 @@
         window.appState = {
             tasks: [],
             listeners: [],
-            isEditing: false
+            isEditing: false,
+            viewMode: 'list', // 'list' or 'calendar'
+            calendarMonth: new Date().getMonth(),
+            calendarYear: new Date().getFullYear()
         };
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -165,6 +168,16 @@
                                     </svg>
                                     Add New Task
                                 </button>
+                                
+                                <div class="flex gap-2 bg-gray-100 p-1 rounded-lg">
+                                    <button id="listViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'list' ? 'bg-white shadow' : 'text-gray-600'}">
+                                        List View
+                                    </button>
+                                    <button id="calendarViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'calendar' ? 'bg-white shadow' : 'text-gray-600'}">
+                                        Calendar View
+                                    </button>
+                                </div>
+
                                 <div class="flex gap-2 flex-1">
                                     <select id="statusFilter" class="p-2 border rounded">
                                         <option value="all">All Statuses</option>
@@ -191,16 +204,117 @@
                             <div id="addTaskForm"></div>
                         </div>
 
-                        <div id="tasksList" class="space-y-4">
-                            ${filteredTasks.length === 0 ? `
-                                <div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                                    <p>No tasks found. Click "Add New Task" to get started!</p>
-                                </div>
-                            ` : filteredTasks.map(task => `
-                                <div class="bg-white rounded-lg shadow-md p-6" data-task-id="${task.id}">
-                                    ${window.appState.editingTaskId === task.id ? generateEditForm(task) : generateTaskView(task)}
+                        ${window.appState.viewMode === 'calendar' ? generateCalendarView(filteredTasks) : generateListView(filteredTasks)}
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateListView(filteredTasks) {
+            return `
+                <div id="tasksList" class="space-y-4">
+                    ${filteredTasks.length === 0 ? `
+                        <div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                            <p>No tasks found. Click "Add New Task" to get started!</p>
+                        </div>
+                    ` : filteredTasks.map(task => `
+                        <div class="bg-white rounded-lg shadow-md p-6" data-task-id="${task.id}">
+                            ${window.appState.editingTaskId === task.id ? generateEditForm(task) : generateTaskView(task)}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function generateCalendarView(filteredTasks) {
+            const currentMonth = window.appState.calendarMonth;
+            const currentYear = window.appState.calendarYear;
+            
+            const monthName = new Date(currentYear, currentMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            const now = new Date();
+            const isCurrentMonth = currentMonth === now.getMonth() && currentYear === now.getFullYear();
+            
+            const tasksByDate = {};
+            filteredTasks.forEach(task => {
+                if (task.dueDate) {
+                    const date = new Date(task.dueDate + 'T00:00:00');
+                    const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                    if (!tasksByDate[dateKey]) tasksByDate[dateKey] = [];
+                    tasksByDate[dateKey].push(task);
+                }
+            });
+            
+            const getPriorityColor = (priority) => {
+                const colors = { 'High': 'bg-red-100 border-red-400', 'Medium': 'bg-yellow-100 border-yellow-400', 'Low': 'bg-green-100 border-green-400' };
+                return colors[priority] || 'bg-gray-100 border-gray-400';
+            };
+            
+            let calendarHTML = `
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">${monthName}</h2>
+                        <div class="flex gap-2">
+                            <button id="prevMonth" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">◀ Prev</button>
+                            <button id="todayBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Today</button>
+                            <button id="nextMonth" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Next ▶</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-2">
+                        <div class="text-center font-semibold p-2 bg-gray-100">Sun</div>
+                        <div class="text-center font-semibold p-2 bg-gray-100">Mon</div>
+                        <div class="text-center font-semibold p-2 bg-gray-100">Tue</div>
+                        <div class="text-center font-semibold p-2 bg-gray-100">Wed</div>
+                        <div class="text-center font-semibold p-2 bg-gray-100">Thu</div>
+                        <div class="text-center font-semibold p-2 bg-gray-100">Fri</div>
+                        <div class="text-center font-semibold p-2 bg-gray-100">Sat</div>
+            `;
+            
+            // Empty cells before first day
+            for (let i = 0; i < firstDay; i++) {
+                calendarHTML += `<div class="border border-gray-200 p-2 min-h-24 bg-gray-50"></div>`;
+            }
+            
+            // Days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${currentYear}-${currentMonth}-${day}`;
+                const dayTasks = tasksByDate[dateKey] || [];
+                const isToday = isCurrentMonth && day === now.getDate();
+                
+                calendarHTML += `
+                    <div class="border border-gray-200 p-2 min-h-24 ${isToday ? 'bg-blue-50 border-blue-400' : 'bg-white'}">
+                        <div class="font-semibold mb-1 ${isToday ? 'text-blue-600' : 'text-gray-700'}">${day}</div>
+                        <div class="space-y-1">
+                            ${dayTasks.map(task => `
+                                <div class="text-xs p-1 border-l-2 ${getPriorityColor(task.priority)} cursor-pointer hover:opacity-80" 
+                                     onclick="window.viewTaskDetails('${task.id}')"
+                                     title="${task.title}">
+                                    <div class="truncate font-medium">${task.title}</div>
+                                    ${task.assignedTo ? `<div class="text-gray-600 truncate">${task.assignedTo}</div>` : ''}
                                 </div>
                             `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            calendarHTML += `
+                    </div>
+                </div>
+            `;
+            
+            return calendarHTML;
+        }
+
+        window.viewTaskDetails = function(taskId) {
+            window.appState.viewMode = 'list';
+            window.appState.isEditing = true;
+            window.appState.editingTaskId = taskId;
+            renderApp();
+        };
                         </div>
                     </div>
                 </div>
@@ -351,6 +465,58 @@
             const addBtn = document.getElementById('addTaskBtn');
             if (addBtn) {
                 addBtn.onclick = () => showAddTaskForm();
+            }
+
+            // View mode buttons
+            const listViewBtn = document.getElementById('listViewBtn');
+            if (listViewBtn) {
+                listViewBtn.onclick = () => {
+                    window.appState.viewMode = 'list';
+                    renderApp();
+                };
+            }
+
+            const calendarViewBtn = document.getElementById('calendarViewBtn');
+            if (calendarViewBtn) {
+                calendarViewBtn.onclick = () => {
+                    window.appState.viewMode = 'calendar';
+                    renderApp();
+                };
+            }
+
+            // Calendar navigation
+            const prevMonthBtn = document.getElementById('prevMonth');
+            if (prevMonthBtn) {
+                prevMonthBtn.onclick = () => {
+                    window.appState.calendarMonth--;
+                    if (window.appState.calendarMonth < 0) {
+                        window.appState.calendarMonth = 11;
+                        window.appState.calendarYear--;
+                    }
+                    renderApp();
+                };
+            }
+
+            const nextMonthBtn = document.getElementById('nextMonth');
+            if (nextMonthBtn) {
+                nextMonthBtn.onclick = () => {
+                    window.appState.calendarMonth++;
+                    if (window.appState.calendarMonth > 11) {
+                        window.appState.calendarMonth = 0;
+                        window.appState.calendarYear++;
+                    }
+                    renderApp();
+                };
+            }
+
+            const todayBtn = document.getElementById('todayBtn');
+            if (todayBtn) {
+                todayBtn.onclick = () => {
+                    const now = new Date();
+                    window.appState.calendarMonth = now.getMonth();
+                    window.appState.calendarYear = now.getFullYear();
+                    renderApp();
+                };
             }
 
             // Filters
