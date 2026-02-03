@@ -576,10 +576,29 @@
                     const links = task.links || [];
                     links.push({ id: Date.now(), name: linkName, url: linkUrl });
                     
+                    // Update local state immediately
+                    task.links = links;
+                    
+                    // Update Firebase
                     const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
-                    window.firebaseUpdate(taskRef, { links: links }).then(() => {
-                        document.getElementById(`edit-link-name-${taskId}`).value = '';
-                        document.getElementById(`edit-link-url-${taskId}`).value = '';
+                    window.firebaseUpdate(taskRef, { links: links });
+                    
+                    // Clear inputs and refresh the edit form display
+                    document.getElementById(`edit-link-name-${taskId}`).value = '';
+                    document.getElementById(`edit-link-url-${taskId}`).value = '';
+                    
+                    // Update the links display
+                    const linksList = document.getElementById(`edit-links-list-${taskId}`);
+                    linksList.innerHTML = links.map(link => `
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded" data-link-id="${link.id}">
+                            <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
+                            <button class="remove-link text-red-500 hover:text-red-700" data-task-id="${taskId}" data-link-id="${link.id}">✕</button>
+                        </div>
+                    `).join('');
+                    
+                    // Reattach remove link event listeners
+                    document.querySelectorAll('.remove-link').forEach(btn => {
+                        btn.onclick = () => removeLinkFromTask(btn.dataset.taskId, btn.dataset.linkId);
                     });
                 }
             } else {
@@ -591,8 +610,27 @@
             const task = window.appState.tasks.find(t => t.id === taskId);
             if (task && task.links) {
                 const updatedLinks = task.links.filter(l => l.id !== parseInt(linkId));
+                
+                // Update local state
+                task.links = updatedLinks;
+                
+                // Update Firebase
                 const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
                 window.firebaseUpdate(taskRef, { links: updatedLinks });
+                
+                // Update the display
+                const linksList = document.getElementById(`edit-links-list-${taskId}`);
+                linksList.innerHTML = updatedLinks.map(link => `
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded" data-link-id="${link.id}">
+                        <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
+                        <button class="remove-link text-red-500 hover:text-red-700" data-task-id="${taskId}" data-link-id="${link.id}">✕</button>
+                    </div>
+                `).join('');
+                
+                // Reattach remove link event listeners
+                document.querySelectorAll('.remove-link').forEach(btn => {
+                    btn.onclick = () => removeLinkFromTask(btn.dataset.taskId, btn.dataset.linkId);
+                });
             }
         }
 
