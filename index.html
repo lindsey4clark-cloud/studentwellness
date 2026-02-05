@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,20 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Wellness Evaluation Task Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-        }
-    </style>
 </head>
 <body>
-    <div id="root"></div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-        import { getDatabase, ref, set, push, onValue, remove, update, off } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
-
+    <div id="root">Loading...</div>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBNGWGQMRSHr-2-i2YN6R12Uj4XhbKBolI",
             authDomain: "wellness-student.firebaseapp.com",
@@ -26,901 +19,232 @@
             projectId: "wellness-student",
             storageBucket: "wellness-student.firebasestorage.app",
             messagingSenderId: "63000652168",
-            appId: "1:63000652168:web:adceba5425f5acb4a7f23d",
-            measurementId: "G-KDY4D8TPR5"
+            appId: "1:63000652168:web:adceba5425f5acb4a7f23d"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-        
-        window.firebaseDB = database;
-        window.firebaseRef = ref;
-        window.firebaseSet = set;
-        window.firebasePush = push;
-        window.firebaseOnValue = onValue;
-        window.firebaseRemove = remove;
-        window.firebaseUpdate = update;
-        window.firebaseOff = off;
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Global state management
-        window.appState = {
+        const state = {
             tasks: [],
-            listeners: [],
             isEditing: false,
-            viewMode: 'list', // 'list' or 'calendar'
+            viewMode: 'list',
             calendarMonth: new Date().getMonth(),
-            calendarYear: new Date().getFullYear()
+            calendarYear: new Date().getFullYear(),
+            editingTaskId: null,
+            newTaskLinks: []
         };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadTasks();
+        db.ref('tasks').on('value', (snapshot) => {
+            if (!state.isEditing) {
+                const data = snapshot.val();
+                state.tasks = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                render();
+            }
         });
 
-        function loadTasks() {
-            const tasksRef = window.firebaseRef(window.firebaseDB, 'tasks');
-            window.firebaseOnValue(tasksRef, (snapshot) => {
-                if (!window.appState.isEditing) {
-                    const data = snapshot.val();
-                    if (data) {
-                        window.appState.tasks = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-                    } else {
-                        window.appState.tasks = [];
-                    }
-                    renderApp();
-                }
-            });
-        }
-
-        function renderApp() {
-            const root = document.getElementById('root');
-            root.innerHTML = generateHTML();
-            attachEventListeners();
-        }
-
-        function generateHTML() {
+        function render() {
+            const tasks = state.tasks;
             const phases = ['Planning & Design', 'Data Collection', 'Analysis', 'Reporting & Dissemination', 'Stakeholder Engagement'];
-            const tasks = window.appState.tasks;
             
-            const getProgressByPhase = (phase) => {
-                const phaseTasks = tasks.filter(task => task.phase === phase);
-                return phaseTasks.length === 0 ? 0 : Math.round((phaseTasks.filter(t => t.status === 'Completed').length / phaseTasks.length) * 100);
-            };
-
-            const getOverallProgress = () => {
-                return tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'Completed').length / tasks.length) * 100);
-            };
-
-            const getInProgressPercent = () => {
-                return tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'In Progress').length / tasks.length) * 100);
-            };
-
-            const getNotStartedPercent = () => {
-                return tasks.length === 0 ? 0 : Math.round((tasks.filter(t => t.status === 'Not Started').length / tasks.length) * 100);
-            };
-
-            const filter = window.appState.statusFilter || 'all';
-            const phaseFilter = window.appState.phaseFilter || 'all';
-            const assigneeFilter = window.appState.assigneeFilter || 'all';
-
-            const filteredTasks = tasks.filter(task => {
-                return (filter === 'all' || task.status === filter) && 
-                       (phaseFilter === 'all' || task.phase === phaseFilter) && 
-                       (assigneeFilter === 'all' || task.assignedTo === assigneeFilter);
+            const completed = tasks.length ? Math.round((tasks.filter(t => t.status === 'Completed').length / tasks.length) * 100) : 0;
+            const inProgress = tasks.length ? Math.round((tasks.filter(t => t.status === 'In Progress').length / tasks.length) * 100) : 0;
+            const notStarted = tasks.length ? Math.round((tasks.filter(t => t.status === 'Not Started').length / tasks.length) * 100) : 0;
+            
+            const filtered = tasks.filter(t => {
+                return (state.statusFilter === 'all' || !state.statusFilter || t.status === state.statusFilter) && 
+                       (state.phaseFilter === 'all' || !state.phaseFilter || t.phase === state.phaseFilter) && 
+                       (state.assigneeFilter === 'all' || !state.assigneeFilter || t.assignedTo === state.assigneeFilter);
             });
 
-            const viewContent = window.appState.viewMode === 'calendar' ? generateCalendarView(filteredTasks) : generateListView(filteredTasks);
+            const phaseProgress = phases.map(phase => {
+                const pts = tasks.filter(t => t.phase === phase);
+                const pct = pts.length ? Math.round((pts.filter(t => t.status === 'Completed').length / pts.length) * 100) : 0;
+                return `<div class="bg-white p-4 rounded shadow"><h3 class="text-sm font-semibold mb-2">${phase}</h3><div class="text-2xl font-bold text-indigo-600 mb-1">${pct}%</div><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-indigo-600 h-2 rounded-full" style="width:${pct}%"></div></div></div>`;
+            }).join('');
 
-            return `
+            document.getElementById('root').innerHTML = `
                 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
                     <div class="max-w-7xl mx-auto">
                         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                            <h1 class="text-3xl font-bold text-gray-800 mb-2">Student Wellness Program Evaluation</h1>
-                            <p class="text-gray-600 mb-4">Task Manager - Team Collaboration Enabled 🔥</p>
-                            
-                            <div class="grid grid-cols-3 gap-4 mb-4">
-                                <div class="bg-green-50 p-4 rounded-lg">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="font-semibold text-gray-700">Completed</span>
-                                        <span class="text-2xl font-bold text-green-600">${getOverallProgress()}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <div class="bg-green-600 h-3 rounded-full transition-all duration-300" style="width: ${getOverallProgress()}%"></div>
-                                    </div>
-                                </div>
-                                
-                                <div class="bg-blue-50 p-4 rounded-lg">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="font-semibold text-gray-700">In Progress</span>
-                                        <span class="text-2xl font-bold text-blue-600">${getInProgressPercent()}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: ${getInProgressPercent()}%"></div>
-                                    </div>
-                                </div>
-                                
-                                <div class="bg-gray-50 p-4 rounded-lg">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="font-semibold text-gray-700">Not Started</span>
-                                        <span class="text-2xl font-bold text-gray-600">${getNotStartedPercent()}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <div class="bg-gray-600 h-3 rounded-full transition-all duration-300" style="width: ${getNotStartedPercent()}%"></div>
-                                    </div>
-                                </div>
+                            <h1 class="text-3xl font-bold mb-2">Student Wellness Program Evaluation</h1>
+                            <p class="text-gray-600 mb-4">Task Manager 🔥</p>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-green-50 p-4 rounded"><div class="flex justify-between mb-2"><span class="font-semibold">Completed</span><span class="text-2xl font-bold text-green-600">${completed}%</span></div><div class="w-full bg-gray-200 rounded-full h-3"><div class="bg-green-600 h-3 rounded-full" style="width:${completed}%"></div></div></div>
+                                <div class="bg-blue-50 p-4 rounded"><div class="flex justify-between mb-2"><span class="font-semibold">In Progress</span><span class="text-2xl font-bold text-blue-600">${inProgress}%</span></div><div class="w-full bg-gray-200 rounded-full h-3"><div class="bg-blue-600 h-3 rounded-full" style="width:${inProgress}%"></div></div></div>
+                                <div class="bg-gray-50 p-4 rounded"><div class="flex justify-between mb-2"><span class="font-semibold">Not Started</span><span class="text-2xl font-bold text-gray-600">${notStarted}%</span></div><div class="w-full bg-gray-200 rounded-full h-3"><div class="bg-gray-600 h-3 rounded-full" style="width:${notStarted}%"></div></div></div>
                             </div>
                         </div>
-
-                        <div class="grid grid-cols-5 gap-3 mb-6">
-                            ${phases.map(phase => `
-                                <div class="bg-white p-4 rounded-lg shadow">
-                                    <h3 class="font-semibold text-sm mb-2 text-gray-700">${phase}</h3>
-                                    <div class="text-2xl font-bold text-indigo-600 mb-1">${getProgressByPhase(phase)}%</div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: ${getProgressByPhase(phase)}%"></div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-
+                        <div class="grid grid-cols-5 gap-3 mb-6">${phaseProgress}</div>
                         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                             <div class="flex gap-4 items-center mb-4 flex-wrap">
-                                <button id="addTaskBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-                                    </svg>
-                                    Add New Task
-                                </button>
-                                
-                                <div class="flex gap-2 bg-gray-100 p-1 rounded-lg">
-                                    <button id="listViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'list' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">
-                                        List View
-                                    </button>
-                                    <button id="calendarViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'calendar' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">
-                                        Calendar View
-                                    </button>
+                                <button onclick="showAdd()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ Add Task</button>
+                                <div class="flex gap-2 bg-gray-100 p-1 rounded">
+                                    <button onclick="setView('list')" class="px-4 py-2 rounded ${state.viewMode === 'list' ? 'bg-white shadow' : ''}">List</button>
+                                    <button onclick="setView('calendar')" class="px-4 py-2 rounded ${state.viewMode === 'calendar' ? 'bg-white shadow' : ''}">Calendar</button>
                                 </div>
-
-                                <div class="flex gap-2 flex-1">
-                                    <select id="statusFilter" class="p-2 border rounded">
-                                        <option value="all">All Statuses</option>
-                                        <option value="Not Started">Not Started</option>
-                                        <option value="In Progress">In Progress</option>
-                                        <option value="Completed">Completed</option>
-                                    </select>
-                                    <select id="phaseFilterSelect" class="p-2 border rounded">
-                                        <option value="all">All Phases</option>
-                                        ${phases.map(phase => `<option value="${phase}">${phase}</option>`).join('')}
-                                    </select>
-                                    <select id="assigneeFilter" class="p-2 border rounded">
-                                        <option value="all">All Team Members</option>
-                                        <option value="Alexa">Alexa</option>
-                                        <option value="Dillon">Dillon</option>
-                                        <option value="Lindsey">Lindsey</option>
-                                        <option value="Carson">Carson</option>
-                                        <option value="Kyle">Kyle</option>
-                                        <option value="StudentWellness Team">StudentWellness Team</option>
-                                    </select>
-                                </div>
-                                <div class="text-sm text-gray-600">Showing ${filteredTasks.length} of ${tasks.length} tasks</div>
+                                <select onchange="setFilter('status',this.value)" class="p-2 border rounded"><option value="all">All Statuses</option><option>Not Started</option><option>In Progress</option><option>Completed</option></select>
+                                <select onchange="setFilter('phase',this.value)" class="p-2 border rounded"><option value="all">All Phases</option>${phases.map(p => `<option>${p}</option>`).join('')}</select>
+                                <select onchange="setFilter('assignee',this.value)" class="p-2 border rounded"><option value="all">All Team</option><option>Alexa</option><option>Dillon</option><option>Lindsey</option><option>Carson</option><option>Kyle</option><option>StudentWellness Team</option></select>
                             </div>
-                            <div id="addTaskForm"></div>
+                            <div id="form"></div>
                         </div>
-
-                        ${window.appState.viewMode === 'calendar' ? generateCalendarView(filteredTasks) : generateListView(filteredTasks)}
-                    </div>
-                </div>
-            `;
-                    <div class="max-w-7xl mx-auto">
-                        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                            <h1 class="text-3xl font-bold text-gray-800 mb-2">Student Wellness Program Evaluation</h1>
-                            <p class="text-gray-600 mb-4">Task Manager - Team Collaboration Enabled 🔥</p>
-                            
-                            <div class="grid grid-cols-3 gap-4 mb-4">
-                                <div class="bg-green-50 p-4 rounded-lg">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="font-semibold text-gray-700">Completed</span>
-                                        <span class="text-2xl font-bold text-green-600">${getOverallProgress()}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <div class="bg-green-600 h-3 rounded-full transition-all duration-300" style="width: ${getOverallProgress()}%"></div>
-                                    </div>
-                                </div>
-                                
-                                <div class="bg-blue-50 p-4 rounded-lg">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="font-semibold text-gray-700">In Progress</span>
-                                        <span class="text-2xl font-bold text-blue-600">${getInProgressPercent()}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: ${getInProgressPercent()}%"></div>
-                                    </div>
-                                </div>
-                                
-                                <div class="bg-gray-50 p-4 rounded-lg">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="font-semibold text-gray-700">Not Started</span>
-                                        <span class="text-2xl font-bold text-gray-600">${getNotStartedPercent()}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <div class="bg-gray-600 h-3 rounded-full transition-all duration-300" style="width: ${getNotStartedPercent()}%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-5 gap-3 mb-6">
-                            ${phases.map(phase => `
-                                <div class="bg-white p-4 rounded-lg shadow">
-                                    <h3 class="font-semibold text-sm mb-2 text-gray-700">${phase}</h3>
-                                    <div class="text-2xl font-bold text-indigo-600 mb-1">${getProgressByPhase(phase)}%</div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: ${getProgressByPhase(phase)}%"></div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-
-                        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                            <div class="flex gap-4 items-center mb-4">
-                                <button id="addTaskBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-                                    </svg>
-                                    Add New Task
-                                </button>
-                                
-                                <div class="flex gap-2 bg-gray-100 p-1 rounded-lg">
-                                    <button id="listViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'list' ? 'bg-white shadow' : 'text-gray-600'}">
-                                        List View
-                                    </button>
-                                    <button id="calendarViewBtn" class="px-4 py-2 rounded ${window.appState.viewMode === 'calendar' ? 'bg-white shadow' : 'text-gray-600'}">
-                                        Calendar View
-                                    </button>
-                                </div>
-
-                                <div class="flex gap-2 flex-1">
-                                    <select id="statusFilter" class="p-2 border rounded">
-                                        <option value="all">All Statuses</option>
-                                        <option value="Not Started">Not Started</option>
-                                        <option value="In Progress">In Progress</option>
-                                        <option value="Completed">Completed</option>
-                                    </select>
-                                    <select id="phaseFilterSelect" class="p-2 border rounded">
-                                        <option value="all">All Phases</option>
-                                        ${phases.map(phase => `<option value="${phase}">${phase}</option>`).join('')}
-                                    </select>
-                                    <select id="assigneeFilter" class="p-2 border rounded">
-                                        <option value="all">All Team Members</option>
-                                        <option value="Alexa">Alexa</option>
-                                        <option value="Dillon">Dillon</option>
-                                        <option value="Lindsey">Lindsey</option>
-                                        <option value="Carson">Carson</option>
-                                        <option value="Kyle">Kyle</option>
-                                        <option value="StudentWellness Team">StudentWellness Team</option>
-                                    </select>
-                                </div>
-                                <div class="text-sm text-gray-600">Showing ${filteredTasks.length} of ${tasks.length} tasks</div>
-                            </div>
-                            <div id="addTaskForm"></div>
-                        </div>
-
-                        ${window.appState.viewMode === 'calendar' ? generateCalendarView(filteredTasks) : generateListView(filteredTasks)}
+                        ${state.viewMode === 'calendar' ? renderCalendar(filtered) : renderList(filtered)}
                     </div>
                 </div>
             `;
         }
 
-        function generateListView(filteredTasks) {
-            return `
-                <div id="tasksList" class="space-y-4">
-                    ${filteredTasks.length === 0 ? `
-                        <div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                            <p>No tasks found. Click "Add New Task" to get started!</p>
-                        </div>
-                    ` : filteredTasks.map(task => `
-                        <div class="bg-white rounded-lg shadow-md p-6" data-task-id="${task.id}">
-                            ${window.appState.editingTaskId === task.id ? generateEditForm(task) : generateTaskView(task)}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+        function renderList(tasks) {
+            if (!tasks.length) return '<div class="bg-white rounded shadow p-8 text-center text-gray-500">No tasks</div>';
+            return '<div class="space-y-4">' + tasks.map(t => `<div class="bg-white rounded shadow-md p-6">${state.editingTaskId === t.id ? renderEdit(t) : renderCard(t)}</div>`).join('') + '</div>';
         }
 
-        function generateCalendarView(filteredTasks) {
-            const currentMonth = window.appState.calendarMonth;
-            const currentYear = window.appState.calendarYear;
+        function renderCard(t) {
+            const pc = { High: 'text-red-600 bg-red-50', Medium: 'text-yellow-600 bg-yellow-50', Low: 'text-green-600 bg-green-50' };
+            const sc = { Completed: 'text-green-700 bg-green-100', 'In Progress': 'text-blue-700 bg-blue-100', 'Not Started': 'text-gray-700 bg-gray-100' };
+            return `<div class="flex justify-between mb-3"><div class="flex-1"><h3 class="text-xl font-semibold mb-2">${t.title}</h3><p class="text-gray-600">${t.description || ''}</p></div><div class="flex gap-2"><button onclick="edit('${t.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded">✎</button><button onclick="del('${t.id}')" class="p-2 text-red-600 hover:bg-red-50 rounded">🗑</button></div></div><div class="flex gap-4 mb-3"><span class="px-3 py-1 rounded text-sm ${pc[t.priority]}">${t.priority}</span><span class="px-3 py-1 rounded text-sm ${sc[t.status]}">${t.status}</span>${t.dueDate ? `<span class="text-sm text-gray-600">${new Date(t.dueDate).toLocaleDateString()}</span>` : ''}${t.assignedTo ? `<span class="text-sm text-gray-600">${t.assignedTo}</span>` : ''}</div><div class="text-sm text-gray-500">Phase: <span class="font-medium text-indigo-600">${t.phase}</span></div>${t.links?.length ? '<div class="mt-3"><div class="text-sm font-medium mb-2">Links:</div>' + t.links.map(l => `<a href="${l.url}" target="_blank" class="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded text-sm mr-2 mb-2 hover:bg-blue-100">${l.name}</a>`).join('') + '</div>' : ''}${t.notes ? `<div class="mt-3 p-3 bg-gray-50 rounded"><div class="text-sm font-medium mb-1">Notes:</div><div class="text-sm">${t.notes}</div></div>` : ''}`;
+        }
+
+        function renderEdit(t) {
+            const phases = ['Planning & Design', 'Data Collection', 'Analysis', 'Reporting & Dissemination', 'Stakeholder Engagement'];
+            const members = ['Alexa', 'Dillon', 'Lindsey', 'Carson', 'Kyle', 'StudentWellness Team'];
+            return `<div class="border-2 border-blue-200 p-4 rounded"><input id="t" value="${t.title}" placeholder="Title" class="w-full p-2 mb-3 border rounded"><textarea id="d" class="w-full p-2 mb-3 border rounded h-20">${t.description || ''}</textarea><div class="grid grid-cols-2 gap-3 mb-3"><select id="ph" class="p-2 border rounded">${phases.map(p => `<option ${t.phase === p ? 'selected' : ''}>${p}</option>`).join('')}</select><select id="pr" class="p-2 border rounded"><option ${t.priority === 'High' ? 'selected' : ''}>High</option><option ${t.priority === 'Medium' ? 'selected' : ''}>Medium</option><option ${t.priority === 'Low' ? 'selected' : ''}>Low</option></select><select id="st" class="p-2 border rounded"><option ${t.status === 'Not Started' ? 'selected' : ''}>Not Started</option><option ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option ${t.status === 'Completed' ? 'selected' : ''}>Completed</option></select><input id="dd" type="date" value="${t.dueDate || ''}" class="p-2 border rounded"></div><select id="as" class="w-full p-2 border rounded mb-3"><option value="">Assign...</option>${members.map(m => `<option ${t.assignedTo === m ? 'selected' : ''}>${m}</option>`).join('')}</select><div class="mb-3"><label class="block text-sm font-medium mb-2">Links</label><div class="flex gap-2 mb-2"><input id="ln" placeholder="Name" class="flex-1 p-2 border rounded"><input id="lu" placeholder="URL" class="flex-1 p-2 border rounded"><button onclick="addL()" class="px-4 py-2 bg-blue-500 text-white rounded">Add</button></div><div id="ll">${t.links?.map(l => `<div class="flex gap-2 p-2 bg-gray-50 rounded mb-1"><a href="${l.url}" target="_blank" class="flex-1 text-blue-600">${l.name}</a><button onclick="remL(${l.id})" class="text-red-500">✕</button></div>`).join('') || ''}</div></div><textarea id="nt" class="w-full p-2 border rounded h-16 mb-3">${t.notes || ''}</textarea><div class="flex gap-2"><button onclick="save()" class="px-4 py-2 bg-green-500 text-white rounded">Save</button><button onclick="cancel()" class="px-4 py-2 bg-gray-300 rounded">Cancel</button></div></div>`;
+        }
+
+        function renderCalendar(tasks) {
+            const m = state.calendarMonth, y = state.calendarYear;
+            const mn = new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const fd = new Date(y, m, 1).getDay();
+            const dm = new Date(y, m + 1, 0).getDate();
+            const now = new Date(), ic = m === now.getMonth() && y === now.getFullYear();
             
-            const monthName = new Date(currentYear, currentMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            
-            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            
-            const now = new Date();
-            const isCurrentMonth = currentMonth === now.getMonth() && currentYear === now.getFullYear();
-            
-            const tasksByDate = {};
-            filteredTasks.forEach(task => {
-                if (task.dueDate) {
-                    const date = new Date(task.dueDate + 'T00:00:00');
-                    const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-                    if (!tasksByDate[dateKey]) tasksByDate[dateKey] = [];
-                    tasksByDate[dateKey].push(task);
+            const td = {};
+            tasks.forEach(t => {
+                if (t.dueDate) {
+                    const d = new Date(t.dueDate + 'T00:00:00');
+                    const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                    if (!td[k]) td[k] = [];
+                    td[k].push(t);
                 }
             });
+
+            let cal = `<div class="bg-white rounded shadow-lg p-6"><div class="flex justify-between mb-6"><h2 class="text-2xl font-bold">${mn}</h2><div class="flex gap-2"><button onclick="navMonth(-1)" class="px-3 py-1 bg-blue-500 text-white rounded">◀</button><button onclick="today()" class="px-3 py-1 bg-gray-200 rounded">Today</button><button onclick="navMonth(1)" class="px-3 py-1 bg-blue-500 text-white rounded">▶</button></div></div><div class="grid grid-cols-7 gap-2">`;
             
-            const getPriorityColor = (priority) => {
-                const colors = { 'High': 'bg-red-100 border-red-400', 'Medium': 'bg-yellow-100 border-yellow-400', 'Low': 'bg-green-100 border-green-400' };
-                return colors[priority] || 'bg-gray-100 border-gray-400';
-            };
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(d => cal += `<div class="text-center font-semibold p-2 bg-gray-100">${d}</div>`);
             
-            let calendarHTML = `
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">${monthName}</h2>
-                        <div class="flex gap-2">
-                            <button id="prevMonth" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">◀ Prev</button>
-                            <button id="todayBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Today</button>
-                            <button id="nextMonth" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Next ▶</button>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-7 gap-2">
-                        <div class="text-center font-semibold p-2 bg-gray-100">Sun</div>
-                        <div class="text-center font-semibold p-2 bg-gray-100">Mon</div>
-                        <div class="text-center font-semibold p-2 bg-gray-100">Tue</div>
-                        <div class="text-center font-semibold p-2 bg-gray-100">Wed</div>
-                        <div class="text-center font-semibold p-2 bg-gray-100">Thu</div>
-                        <div class="text-center font-semibold p-2 bg-gray-100">Fri</div>
-                        <div class="text-center font-semibold p-2 bg-gray-100">Sat</div>
-            `;
+            for (let i = 0; i < fd; i++) cal += '<div class="border p-2 min-h-24 bg-gray-50"></div>';
             
-            // Empty cells before first day
-            for (let i = 0; i < firstDay; i++) {
-                calendarHTML += `<div class="border border-gray-200 p-2 min-h-24 bg-gray-50"></div>`;
+            for (let day = 1; day <= dm; day++) {
+                const k = `${y}-${m}-${day}`;
+                const dt = td[k] || [];
+                const it = ic && day === now.getDate();
+                const pc = { High: 'bg-red-100 border-red-400', Medium: 'bg-yellow-100 border-yellow-400', Low: 'bg-green-100 border-green-400' };
+                cal += `<div class="border p-2 min-h-24 ${it ? 'bg-blue-50 border-blue-400' : 'bg-white'}"><div class="font-semibold mb-1 ${it ? 'text-blue-600' : ''}">${day}</div>${dt.map(t => `<div class="text-xs p-1 border-l-2 ${pc[t.priority] || 'bg-gray-100'} cursor-pointer mb-1" onclick="viewTask('${t.id}')"><div class="truncate font-medium">${t.title}</div>${t.assignedTo ? `<div class="text-gray-600 truncate">${t.assignedTo}</div>` : ''}</div>`).join('')}</div>`;
             }
             
-            // Days of the month
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateKey = `${currentYear}-${currentMonth}-${day}`;
-                const dayTasks = tasksByDate[dateKey] || [];
-                const isToday = isCurrentMonth && day === now.getDate();
-                
-                calendarHTML += `
-                    <div class="border border-gray-200 p-2 min-h-24 ${isToday ? 'bg-blue-50 border-blue-400' : 'bg-white'}">
-                        <div class="font-semibold mb-1 ${isToday ? 'text-blue-600' : 'text-gray-700'}">${day}</div>
-                        <div class="space-y-1">
-                            ${dayTasks.map(task => `
-                                <div class="text-xs p-1 border-l-2 ${getPriorityColor(task.priority)} cursor-pointer hover:opacity-80" 
-                                     onclick="window.viewTaskDetails('${task.id}')"
-                                     title="${task.title}">
-                                    <div class="truncate font-medium">${task.title}</div>
-                                    ${task.assignedTo ? `<div class="text-gray-600 truncate">${task.assignedTo}</div>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
+            return cal + '</div></div>';
+        }
+
+        function setView(v) { state.viewMode = v; render(); }
+        function setFilter(t, v) { state[t + 'Filter'] = v; render(); }
+        function edit(id) { state.isEditing = true; state.editingTaskId = id; render(); }
+        function del(id) { if (confirm('Delete?')) db.ref(`tasks/${id}`).remove(); }
+        function cancel() { state.isEditing = false; state.editingTaskId = null; render(); }
+        function navMonth(d) { state.calendarMonth += d; if (state.calendarMonth < 0) { state.calendarMonth = 11; state.calendarYear--; } if (state.calendarMonth > 11) { state.calendarMonth = 0; state.calendarYear++; } render(); }
+        function today() { const n = new Date(); state.calendarMonth = n.getMonth(); state.calendarYear = n.getFullYear(); render(); }
+        function viewTask(id) { state.viewMode = 'list'; state.isEditing = true; state.editingTaskId = id; render(); }
+
+        function save() {
+            const id = state.editingTaskId;
+            const task = state.tasks.find(t => t.id === id);
+            db.ref(`tasks/${id}`).set({
+                title: document.getElementById('t').value,
+                description: document.getElementById('d').value,
+                phase: document.getElementById('ph').value,
+                priority: document.getElementById('pr').value,
+                status: document.getElementById('st').value,
+                dueDate: document.getElementById('dd').value,
+                assignedTo: document.getElementById('as').value,
+                notes: document.getElementById('nt').value,
+                links: task.links || []
+            }).then(() => { state.isEditing = false; state.editingTaskId = null; render(); });
+        }
+
+        function addL() {
+            const id = state.editingTaskId;
+            const task = state.tasks.find(t => t.id === id);
+            const n = document.getElementById('ln').value.trim();
+            const u = document.getElementById('lu').value.trim();
+            if (n && u) {
+                const links = task.links || [];
+                links.push({ id: Date.now(), name: n, url: u });
+                task.links = links;
+                db.ref(`tasks/${id}`).update({ links });
+                document.getElementById('ln').value = '';
+                document.getElementById('lu').value = '';
+                document.getElementById('ll').innerHTML = links.map(l => `<div class="flex gap-2 p-2 bg-gray-50 rounded mb-1"><a href="${l.url}" target="_blank" class="flex-1 text-blue-600">${l.name}</a><button onclick="remL(${l.id})" class="text-red-500">✕</button></div>`).join('');
             }
-            
-            calendarHTML += `
-                    </div>
-                </div>
-            `;
-            
-            return calendarHTML;
         }
 
-        window.viewTaskDetails = function(taskId) {
-            window.appState.viewMode = 'list';
-            window.appState.isEditing = true;
-            window.appState.editingTaskId = taskId;
-            renderApp();
-        };
-                        </div>
-                    </div>
-                </div>
-            `;
+        function remL(linkId) {
+            const id = state.editingTaskId;
+            const task = state.tasks.find(t => t.id === id);
+            const links = (task.links || []).filter(l => l.id !== linkId);
+            task.links = links;
+            db.ref(`tasks/${id}`).update({ links });
+            document.getElementById('ll').innerHTML = links.map(l => `<div class="flex gap-2 p-2 bg-gray-50 rounded mb-1"><a href="${l.url}" target="_blank" class="flex-1 text-blue-600">${l.name}</a><button onclick="remL(${l.id})" class="text-red-500">✕</button></div>`).join('');
         }
 
-        function generateTaskView(task) {
-            const getPriorityColor = (priority) => {
-                const colors = { 'High': 'text-red-600 bg-red-50 border-red-200', 'Medium': 'text-yellow-600 bg-yellow-50 border-yellow-200', 'Low': 'text-green-600 bg-green-50 border-green-200' };
-                return colors[priority] || 'text-gray-600 bg-gray-50 border-gray-200';
-            };
-
-            const getStatusColor = (status) => {
-                const colors = { 'Completed': 'text-green-700 bg-green-100', 'In Progress': 'text-blue-700 bg-blue-100', 'Not Started': 'text-gray-700 bg-gray-100' };
-                return colors[status] || 'text-gray-700 bg-gray-100';
-            };
-
-            return `
-                <div class="flex items-start justify-between mb-3">
-                    <div class="flex-1">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">${task.title}</h3>
-                        <p class="text-gray-600 mb-3">${task.description || ''}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="edit-task p-2 text-blue-600 hover:bg-blue-50 rounded" data-task-id="${task.id}">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                            </svg>
-                        </button>
-                        <button class="delete-task p-2 text-red-600 hover:bg-red-50 rounded" data-task-id="${task.id}">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="grid grid-cols-4 gap-4 mb-3">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-1 rounded text-sm border ${getPriorityColor(task.priority)}">${task.priority}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-3 py-1 rounded text-sm ${getStatusColor(task.status)}">${task.status}</span>
-                    </div>
-                    ${task.dueDate ? `<div class="flex items-center gap-2 text-gray-600"><span class="text-sm">${new Date(task.dueDate).toLocaleDateString()}</span></div>` : '<div></div>'}
-                    ${task.assignedTo ? `<div class="flex items-center gap-2 text-gray-600"><span class="text-sm">${task.assignedTo}</span></div>` : '<div></div>'}
-                </div>
-                <div class="text-sm text-gray-500 mb-3">Phase: <span class="font-medium text-indigo-600">${task.phase}</span></div>
-                ${task.links && task.links.length > 0 ? `
-                    <div class="mb-3">
-                        <div class="text-sm font-medium text-gray-700 mb-2">Attached Documents:</div>
-                        <div class="flex flex-wrap gap-2">
-                            ${task.links.map(link => `
-                                <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 text-sm">
-                                    ${link.name}
-                                </a>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-                ${task.notes ? `
-                    <div class="mt-3 p-3 bg-gray-50 rounded">
-                        <div class="text-sm font-medium text-gray-700 mb-1">Notes:</div>
-                        <div class="text-sm text-gray-600">${task.notes}</div>
-                    </div>
-                ` : ''}
-            `;
-        }
-
-        function generateEditForm(task) {
+        function showAdd() {
+            state.isEditing = true;
+            state.newTaskLinks = [];
             const phases = ['Planning & Design', 'Data Collection', 'Analysis', 'Reporting & Dissemination', 'Stakeholder Engagement'];
-            const teamMembers = ['Alexa', 'Dillon', 'Lindsey', 'Carson', 'Kyle', 'StudentWellness Team'];
-            
-            return `
-                <div class="bg-white p-6 rounded-lg border-2 border-blue-200">
-                    <input type="text" id="edit-title-${task.id}" value="${task.title || ''}" placeholder="Task Title" class="w-full p-2 mb-3 border rounded" />
-                    <textarea id="edit-description-${task.id}" placeholder="Description" class="w-full p-2 mb-3 border rounded h-20">${task.description || ''}</textarea>
-                    
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Phase</label>
-                            <select id="edit-phase-${task.id}" class="w-full p-2 border rounded">
-                                ${phases.map(phase => `<option value="${phase}" ${task.phase === phase ? 'selected' : ''}>${phase}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Priority</label>
-                            <select id="edit-priority-${task.id}" class="w-full p-2 border rounded">
-                                <option value="High" ${task.priority === 'High' ? 'selected' : ''}>High</option>
-                                <option value="Medium" ${task.priority === 'Medium' ? 'selected' : ''}>Medium</option>
-                                <option value="Low" ${task.priority === 'Low' ? 'selected' : ''}>Low</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Status</label>
-                            <select id="edit-status-${task.id}" class="w-full p-2 border rounded">
-                                <option value="Not Started" ${task.status === 'Not Started' ? 'selected' : ''}>Not Started</option>
-                                <option value="In Progress" ${task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                                <option value="Completed" ${task.status === 'Completed' ? 'selected' : ''}>Completed</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Due Date</label>
-                            <input type="date" id="edit-dueDate-${task.id}" value="${task.dueDate || ''}" class="w-full p-2 border rounded" />
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="block text-sm font-medium mb-1">Assigned To</label>
-                        <select id="edit-assignedTo-${task.id}" class="w-full p-2 border rounded">
-                            <option value="">Select team member...</option>
-                            ${teamMembers.map(member => `<option value="${member}" ${task.assignedTo === member ? 'selected' : ''}>${member}</option>`).join('')}
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="block text-sm font-medium mb-2">Attached Links</label>
-                        <div class="flex gap-2 mb-2">
-                            <input type="text" id="edit-link-name-${task.id}" placeholder="Link name (e.g., Survey Draft)" class="flex-1 p-2 border rounded" />
-                            <input type="text" id="edit-link-url-${task.id}" placeholder="URL" class="flex-1 p-2 border rounded" />
-                            <button class="add-link px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" data-task-id="${task.id}">Add Link</button>
-                        </div>
-                        <div id="edit-links-list-${task.id}" class="space-y-1">
-                            ${task.links && task.links.length > 0 ? task.links.map(link => `
-                                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded" data-link-id="${link.id}">
-                                    <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
-                                    <button class="remove-link text-red-500 hover:text-red-700" data-task-id="${task.id}" data-link-id="${link.id}">✕</button>
-                                </div>
-                            `).join('') : ''}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="block text-sm font-medium mb-1">Notes</label>
-                        <textarea id="edit-notes-${task.id}" placeholder="Additional notes" class="w-full p-2 border rounded h-16">${task.notes || ''}</textarea>
-                    </div>
-                    
-                    <div class="flex gap-2">
-                        <button class="save-task px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600" data-task-id="${task.id}">Save Changes</button>
-                        <button class="cancel-edit px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Cancel</button>
-                    </div>
-                </div>
-            `;
+            const members = ['Alexa', 'Dillon', 'Lindsey', 'Carson', 'Kyle', 'StudentWellness Team'];
+            document.getElementById('form').innerHTML = `<div class="border-2 border-blue-200 p-4 rounded mt-4"><input id="nt" placeholder="Title" class="w-full p-2 mb-3 border rounded"><textarea id="nd" class="w-full p-2 mb-3 border rounded h-20"></textarea><div class="grid grid-cols-2 gap-3 mb-3"><select id="nph" class="p-2 border rounded">${phases.map(p => `<option>${p}</option>`).join('')}</select><select id="npr" class="p-2 border rounded"><option>High</option><option selected>Medium</option><option>Low</option></select><select id="nst" class="p-2 border rounded"><option selected>Not Started</option><option>In Progress</option><option>Completed</option></select><input id="ndd" type="date" class="p-2 border rounded"></div><select id="nas" class="w-full p-2 border rounded mb-3"><option value="">Assign...</option>${members.map(m => `<option>${m}</option>`).join('')}</select><div class="mb-3"><label class="block text-sm font-medium mb-2">Links</label><div class="flex gap-2 mb-2"><input id="nln" placeholder="Name" class="flex-1 p-2 border rounded"><input id="nlu" placeholder="URL" class="flex-1 p-2 border rounded"><button onclick="addNL()" class="px-4 py-2 bg-blue-500 text-white rounded">Add</button></div><div id="nll"></div></div><textarea id="nnt" class="w-full p-2 border rounded h-16 mb-3"></textarea><div class="flex gap-2"><button onclick="saveNew()" class="px-4 py-2 bg-green-500 text-white rounded">Add</button><button onclick="cancelNew()" class="px-4 py-2 bg-gray-300 rounded">Cancel</button></div></div>`;
         }
 
-        function attachEventListeners() {
-            // Add task button
-            const addBtn = document.getElementById('addTaskBtn');
-            if (addBtn) {
-                addBtn.onclick = () => showAddTaskForm();
+        function addNL() {
+            const n = document.getElementById('nln').value.trim();
+            const u = document.getElementById('nlu').value.trim();
+            if (n && u) {
+                state.newTaskLinks.push({ id: Date.now(), name: n, url: u });
+                document.getElementById('nln').value = '';
+                document.getElementById('nlu').value = '';
+                document.getElementById('nll').innerHTML = state.newTaskLinks.map(l => `<div class="flex gap-2 p-2 bg-gray-50 rounded mb-1"><a href="${l.url}" target="_blank" class="flex-1 text-blue-600">${l.name}</a><button onclick="remNL(${l.id})" class="text-red-500">✕</button></div>`).join('');
             }
-
-            // View mode buttons
-            const listViewBtn = document.getElementById('listViewBtn');
-            if (listViewBtn) {
-                listViewBtn.onclick = () => {
-                    window.appState.viewMode = 'list';
-                    renderApp();
-                };
-            }
-
-            const calendarViewBtn = document.getElementById('calendarViewBtn');
-            if (calendarViewBtn) {
-                calendarViewBtn.onclick = () => {
-                    window.appState.viewMode = 'calendar';
-                    renderApp();
-                };
-            }
-
-            // Calendar navigation
-            const prevMonthBtn = document.getElementById('prevMonth');
-            if (prevMonthBtn) {
-                prevMonthBtn.onclick = () => {
-                    window.appState.calendarMonth--;
-                    if (window.appState.calendarMonth < 0) {
-                        window.appState.calendarMonth = 11;
-                        window.appState.calendarYear--;
-                    }
-                    renderApp();
-                };
-            }
-
-            const nextMonthBtn = document.getElementById('nextMonth');
-            if (nextMonthBtn) {
-                nextMonthBtn.onclick = () => {
-                    window.appState.calendarMonth++;
-                    if (window.appState.calendarMonth > 11) {
-                        window.appState.calendarMonth = 0;
-                        window.appState.calendarYear++;
-                    }
-                    renderApp();
-                };
-            }
-
-            const todayBtn = document.getElementById('todayBtn');
-            if (todayBtn) {
-                todayBtn.onclick = () => {
-                    const now = new Date();
-                    window.appState.calendarMonth = now.getMonth();
-                    window.appState.calendarYear = now.getFullYear();
-                    renderApp();
-                };
-            }
-
-            // Filters
-            const statusFilter = document.getElementById('statusFilter');
-            if (statusFilter) {
-                statusFilter.value = window.appState.statusFilter || 'all';
-                statusFilter.onchange = (e) => {
-                    window.appState.statusFilter = e.target.value;
-                    renderApp();
-                };
-            }
-
-            const phaseFilterSelect = document.getElementById('phaseFilterSelect');
-            if (phaseFilterSelect) {
-                phaseFilterSelect.value = window.appState.phaseFilter || 'all';
-                phaseFilterSelect.onchange = (e) => {
-                    window.appState.phaseFilter = e.target.value;
-                    renderApp();
-                };
-            }
-
-            const assigneeFilter = document.getElementById('assigneeFilter');
-            if (assigneeFilter) {
-                assigneeFilter.value = window.appState.assigneeFilter || 'all';
-                assigneeFilter.onchange = (e) => {
-                    window.appState.assigneeFilter = e.target.value;
-                    renderApp();
-                };
-            }
-
-            // Edit buttons
-            document.querySelectorAll('.edit-task').forEach(btn => {
-                btn.onclick = () => {
-                    window.appState.isEditing = true;
-                    window.appState.editingTaskId = btn.dataset.taskId;
-                    renderApp();
-                };
-            });
-
-            // Delete buttons
-            document.querySelectorAll('.delete-task').forEach(btn => {
-                btn.onclick = () => {
-                    if (confirm('Are you sure you want to delete this task?')) {
-                        window.firebaseRemove(window.firebaseRef(window.firebaseDB, `tasks/${btn.dataset.taskId}`));
-                    }
-                };
-            });
-
-            // Save buttons
-            document.querySelectorAll('.save-task').forEach(btn => {
-                btn.onclick = () => saveTask(btn.dataset.taskId);
-            });
-
-            // Cancel buttons
-            document.querySelectorAll('.cancel-edit').forEach(btn => {
-                btn.onclick = () => {
-                    window.appState.isEditing = false;
-                    window.appState.editingTaskId = null;
-                    renderApp();
-                };
-            });
-
-            // Add link buttons
-            document.querySelectorAll('.add-link').forEach(btn => {
-                btn.onclick = () => addLinkToTask(btn.dataset.taskId);
-            });
-
-            // Remove link buttons
-            document.querySelectorAll('.remove-link').forEach(btn => {
-                btn.onclick = () => removeLinkFromTask(btn.dataset.taskId, btn.dataset.linkId);
-            });
         }
 
-        function showAddTaskForm() {
-            window.appState.isEditing = true;
-            const phases = ['Planning & Design', 'Data Collection', 'Analysis', 'Reporting & Dissemination', 'Stakeholder Engagement'];
-            const teamMembers = ['Alexa', 'Dillon', 'Lindsey', 'Carson', 'Kyle', 'StudentWellness Team'];
-            
-            const formHTML = `
-                <div class="bg-white p-6 rounded-lg border-2 border-blue-200 mb-4">
-                    <input type="text" id="new-title" placeholder="Task Title" class="w-full p-2 mb-3 border rounded" />
-                    <textarea id="new-description" placeholder="Description" class="w-full p-2 mb-3 border rounded h-20"></textarea>
-                    
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Phase</label>
-                            <select id="new-phase" class="w-full p-2 border rounded">
-                                ${phases.map(phase => `<option value="${phase}">${phase}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Priority</label>
-                            <select id="new-priority" class="w-full p-2 border rounded">
-                                <option value="High">High</option>
-                                <option value="Medium" selected>Medium</option>
-                                <option value="Low">Low</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Status</label>
-                            <select id="new-status" class="w-full p-2 border rounded">
-                                <option value="Not Started" selected>Not Started</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Completed">Completed</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Due Date</label>
-                            <input type="date" id="new-dueDate" class="w-full p-2 border rounded" />
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="block text-sm font-medium mb-1">Assigned To</label>
-                        <select id="new-assignedTo" class="w-full p-2 border rounded">
-                            <option value="">Select team member...</option>
-                            ${teamMembers.map(member => `<option value="${member}">${member}</option>`).join('')}
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="block text-sm font-medium mb-2">Attached Links</label>
-                        <div class="flex gap-2 mb-2">
-                            <input type="text" id="new-link-name" placeholder="Link name (e.g., Survey Draft)" class="flex-1 p-2 border rounded" />
-                            <input type="text" id="new-link-url" placeholder="URL" class="flex-1 p-2 border rounded" />
-                            <button id="add-new-link" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Link</button>
-                        </div>
-                        <div id="new-links-list" class="space-y-1"></div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="block text-sm font-medium mb-1">Notes</label>
-                        <textarea id="new-notes" placeholder="Additional notes" class="w-full p-2 border rounded h-16"></textarea>
-                    </div>
-                    
-                    <div class="flex gap-2">
-                        <button id="save-new-task" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Add Task</button>
-                        <button id="cancel-new-task" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Cancel</button>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('addTaskForm').innerHTML = formHTML;
-            
-            window.appState.newTaskLinks = [];
-            
-            document.getElementById('add-new-link').onclick = () => addNewTaskLink();
-            document.getElementById('save-new-task').onclick = () => saveNewTask();
-            document.getElementById('cancel-new-task').onclick = () => {
-                window.appState.isEditing = false;
-                window.appState.newTaskLinks = [];
-                document.getElementById('addTaskForm').innerHTML = '';
+        function remNL(id) {
+            state.newTaskLinks = state.newTaskLinks.filter(l => l.id !== id);
+            document.getElementById('nll').innerHTML = state.newTaskLinks.map(l => `<div class="flex gap-2 p-2 bg-gray-50 rounded mb-1"><a href="${l.url}" target="_blank" class="flex-1 text-blue-600">${l.name}</a><button onclick="remNL(${l.id})" class="text-red-500">✕</button></div>`).join('');
+        }
+
+        function saveNew() {
+            const task = {
+                title: document.getElementById('nt').value,
+                description: document.getElementById('nd').value,
+                phase: document.getElementById('nph').value,
+                priority: document.getElementById('npr').value,
+                status: document.getElementById('nst').value,
+                dueDate: document.getElementById('ndd').value,
+                assignedTo: document.getElementById('nas').value,
+                notes: document.getElementById('nnt').value,
+                links: state.newTaskLinks
             };
-        }
-
-        function addNewTaskLink() {
-            const linkName = document.getElementById('new-link-name').value.trim();
-            const linkUrl = document.getElementById('new-link-url').value.trim();
-            
-            if (linkName && linkUrl) {
-                const newLink = { id: Date.now(), name: linkName, url: linkUrl };
-                window.appState.newTaskLinks.push(newLink);
-                
-                document.getElementById('new-link-name').value = '';
-                document.getElementById('new-link-url').value = '';
-                
-                updateNewLinksDisplay();
-            } else {
-                alert('Please enter both link name and URL');
-            }
-        }
-
-        function updateNewLinksDisplay() {
-            const linksList = document.getElementById('new-links-list');
-            linksList.innerHTML = window.appState.newTaskLinks.map(link => `
-                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                    <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
-                    <button class="remove-new-link text-red-500 hover:text-red-700" data-link-id="${link.id}">✕</button>
-                </div>
-            `).join('');
-            
-            document.querySelectorAll('.remove-new-link').forEach(btn => {
-                btn.onclick = () => {
-                    window.appState.newTaskLinks = window.appState.newTaskLinks.filter(l => l.id !== parseInt(btn.dataset.linkId));
-                    updateNewLinksDisplay();
-                };
-            });
-        }
-
-        function saveNewTask() {
-            const newTask = {
-                title: document.getElementById('new-title').value,
-                description: document.getElementById('new-description').value,
-                phase: document.getElementById('new-phase').value,
-                priority: document.getElementById('new-priority').value,
-                status: document.getElementById('new-status').value,
-                dueDate: document.getElementById('new-dueDate').value,
-                assignedTo: document.getElementById('new-assignedTo').value,
-                notes: document.getElementById('new-notes').value,
-                links: window.appState.newTaskLinks || []
-            };
-            
-            if (newTask.title.trim()) {
-                const newTaskRef = window.firebasePush(window.firebaseRef(window.firebaseDB, 'tasks'));
-                window.firebaseSet(newTaskRef, newTask).then(() => {
-                    window.appState.isEditing = false;
-                    window.appState.newTaskLinks = [];
-                    document.getElementById('addTaskForm').innerHTML = '';
-                    renderApp();
-                });
-            } else {
-                alert('Please enter a task title');
-            }
-        }
-
-        function addLinkToTask(taskId) {
-            const linkName = document.getElementById(`edit-link-name-${taskId}`).value.trim();
-            const linkUrl = document.getElementById(`edit-link-url-${taskId}`).value.trim();
-            
-            if (linkName && linkUrl) {
-                const task = window.appState.tasks.find(t => t.id === taskId);
-                if (task) {
-                    const links = task.links || [];
-                    links.push({ id: Date.now(), name: linkName, url: linkUrl });
-                    
-                    // Update local state immediately
-                    task.links = links;
-                    
-                    // Update Firebase
-                    const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
-                    window.firebaseUpdate(taskRef, { links: links });
-                    
-                    // Clear inputs and refresh the edit form display
-                    document.getElementById(`edit-link-name-${taskId}`).value = '';
-                    document.getElementById(`edit-link-url-${taskId}`).value = '';
-                    
-                    // Update the links display
-                    const linksList = document.getElementById(`edit-links-list-${taskId}`);
-                    linksList.innerHTML = links.map(link => `
-                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded" data-link-id="${link.id}">
-                            <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
-                            <button class="remove-link text-red-500 hover:text-red-700" data-task-id="${taskId}" data-link-id="${link.id}">✕</button>
-                        </div>
-                    `).join('');
-                    
-                    // Reattach remove link event listeners
-                    document.querySelectorAll('.remove-link').forEach(btn => {
-                        btn.onclick = () => removeLinkFromTask(btn.dataset.taskId, btn.dataset.linkId);
-                    });
-                }
-            } else {
-                alert('Please enter both link name and URL');
-            }
-        }
-
-        function removeLinkFromTask(taskId, linkId) {
-            const task = window.appState.tasks.find(t => t.id === taskId);
-            if (task && task.links) {
-                const updatedLinks = task.links.filter(l => l.id !== parseInt(linkId));
-                
-                // Update local state
-                task.links = updatedLinks;
-                
-                // Update Firebase
-                const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
-                window.firebaseUpdate(taskRef, { links: updatedLinks });
-                
-                // Update the display
-                const linksList = document.getElementById(`edit-links-list-${taskId}`);
-                linksList.innerHTML = updatedLinks.map(link => `
-                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded" data-link-id="${link.id}">
-                        <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex-1">${link.name}</a>
-                        <button class="remove-link text-red-500 hover:text-red-700" data-task-id="${taskId}" data-link-id="${link.id}">✕</button>
-                    </div>
-                `).join('');
-                
-                // Reattach remove link event listeners
-                document.querySelectorAll('.remove-link').forEach(btn => {
-                    btn.onclick = () => removeLinkFromTask(btn.dataset.taskId, btn.dataset.linkId);
+            if (task.title.trim()) {
+                db.ref('tasks').push(task).then(() => {
+                    state.isEditing = false;
+                    state.newTaskLinks = [];
+                    document.getElementById('form').innerHTML = '';
+                    render();
                 });
             }
         }
 
-        function saveTask(taskId) {
-            const task = window.appState.tasks.find(t => t.id === taskId);
-            
-            const updatedTask = {
-                title: document.getElementById(`edit-title-${taskId}`).value,
-                description: document.getElementById(`edit-description-${taskId}`).value,
-                phase: document.getElementById(`edit-phase-${taskId}`).value,
-                priority: document.getElementById(`edit-priority-${taskId}`).value,
-                status: document.getElementById(`edit-status-${taskId}`).value,
-                dueDate: document.getElementById(`edit-dueDate-${taskId}`).value,
-                assignedTo: document.getElementById(`edit-assignedTo-${taskId}`).value,
-                notes: document.getElementById(`edit-notes-${taskId}`).value,
-                links: task && task.links ? task.links : []
-            };
-            
-            const taskRef = window.firebaseRef(window.firebaseDB, `tasks/${taskId}`);
-            window.firebaseSet(taskRef, updatedTask).then(() => {
-                window.appState.isEditing = false;
-                window.appState.editingTaskId = null;
-                renderApp();
-            });
+        function cancelNew() {
+            state.isEditing = false;
+            document.getElementById('form').innerHTML = '';
         }
     </script>
 </body>
