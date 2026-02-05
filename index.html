@@ -167,6 +167,8 @@
         function save() {
             const id = state.editingTaskId;
             const task = state.tasks.find(t => t.id === id);
+            state.isEditing = false;
+            state.editingTaskId = null;
             db.ref(`tasks/${id}`).set({
                 title: document.getElementById('t').value,
                 description: document.getElementById('d').value,
@@ -177,7 +179,7 @@
                 assignedTo: document.getElementById('as').value,
                 notes: document.getElementById('nt').value,
                 links: task.links || []
-            }).then(() => { state.isEditing = false; state.editingTaskId = null; render(); });
+            });
         }
 
         function addL() {
@@ -242,12 +244,10 @@
                 links: state.newTaskLinks
             };
             if (task.title.trim()) {
-                db.ref('tasks').push(task).then(() => {
-                    state.isEditing = false;
-                    state.newTaskLinks = [];
-                    document.getElementById('form').innerHTML = '';
-                    render();
-                });
+                state.isEditing = false;
+                state.newTaskLinks = [];
+                document.getElementById('form').innerHTML = '';
+                db.ref('tasks').push(task);
             }
         }
 
