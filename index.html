@@ -36,10 +36,19 @@
         };
 
         db.ref('tasks').on('value', (snapshot) => {
-            if (!state.isEditing) {
-                const data = snapshot.val();
-                state.tasks = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+            const data = snapshot.val();
+            const newTasks = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+            
+            // Only skip render if actively typing in an input field
+            const activeElement = document.activeElement;
+            const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT');
+            
+            if (!isTyping) {
+                state.tasks = newTasks;
                 render();
+            } else {
+                // Update state silently without re-rendering
+                state.tasks = newTasks;
             }
         });
 
