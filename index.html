@@ -92,9 +92,26 @@
                                     <button onclick="setView('list')" class="px-4 py-2 rounded ${state.viewMode === 'list' ? 'bg-white shadow' : ''}">List</button>
                                     <button onclick="setView('calendar')" class="px-4 py-2 rounded ${state.viewMode === 'calendar' ? 'bg-white shadow' : ''}">Calendar</button>
                                 </div>
-                                <select onchange="setFilter('status',this.value)" class="p-2 border rounded"><option value="all">All Statuses</option><option>Not Started</option><option>In Progress</option><option>Completed</option></select>
-                                <select onchange="setFilter('phase',this.value)" class="p-2 border rounded"><option value="all">All Phases</option>${phases.map(p => `<option>${p}</option>`).join('')}</select>
-                                <select onchange="setFilter('assignee',this.value)" class="p-2 border rounded" id="assigneeFilterSelect"><option value="all">All Team</option><option value="Alexa">Alexa</option><option value="Dillon">Dillon</option><option value="Lindsey">Lindsey</option><option value="Carson">Carson</option><option value="Kyle">Kyle</option><option value="Emily">Emily</option><option value="StudentWellness Team">StudentWellness Team</option></select>
+                                <select onchange="setFilter('status',this.value)" class="p-2 border rounded">
+                                    <option value="all" ${(!state.statusFilter || state.statusFilter === 'all') ? 'selected' : ''}>All Statuses</option>
+                                    <option value="Not Started" ${state.statusFilter === 'Not Started' ? 'selected' : ''}>Not Started</option>
+                                    <option value="In Progress" ${state.statusFilter === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                    <option value="Completed" ${state.statusFilter === 'Completed' ? 'selected' : ''}>Completed</option>
+                                </select>
+                                <select onchange="setFilter('phase',this.value)" class="p-2 border rounded">
+                                    <option value="all" ${(!state.phaseFilter || state.phaseFilter === 'all') ? 'selected' : ''}>All Phases</option>
+                                    ${phases.map(p => `<option value="${p}" ${state.phaseFilter === p ? 'selected' : ''}>${p}</option>`).join('')}
+                                </select>
+                                <select onchange="setFilter('assignee',this.value)" class="p-2 border rounded" id="assigneeFilterSelect">
+                                    <option value="all" ${(!state.assigneeFilter || state.assigneeFilter === 'all') ? 'selected' : ''}>All Team</option>
+                                    <option value="Alexa" ${state.assigneeFilter === 'Alexa' ? 'selected' : ''}>Alexa</option>
+                                    <option value="Dillon" ${state.assigneeFilter === 'Dillon' ? 'selected' : ''}>Dillon</option>
+                                    <option value="Lindsey" ${state.assigneeFilter === 'Lindsey' ? 'selected' : ''}>Lindsey</option>
+                                    <option value="Carson" ${state.assigneeFilter === 'Carson' ? 'selected' : ''}>Carson</option>
+                                    <option value="Kyle" ${state.assigneeFilter === 'Kyle' ? 'selected' : ''}>Kyle</option>
+                                    <option value="Emily" ${state.assigneeFilter === 'Emily' ? 'selected' : ''}>Emily</option>
+                                    <option value="StudentWellness Team" ${state.assigneeFilter === 'StudentWellness Team' ? 'selected' : ''}>StudentWellness Team</option>
+                                </select>
                             </div>
                             <div id="form"></div>
                         </div>
