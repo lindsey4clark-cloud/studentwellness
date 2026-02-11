@@ -61,9 +61,9 @@
             const notStarted = tasks.length ? Math.round((tasks.filter(t => t.status === 'Not Started').length / tasks.length) * 100) : 0;
             
             const filtered = tasks.filter(t => {
-                return (state.statusFilter === 'all' || !state.statusFilter || t.status === state.statusFilter) && 
-                       (state.phaseFilter === 'all' || !state.phaseFilter || t.phase === state.phaseFilter) && 
-                       (state.assigneeFilter === 'all' || !state.assigneeFilter || t.assignedTo === state.assigneeFilter);
+                return (!state.statusFilter || state.statusFilter === 'all' || t.status === state.statusFilter) && 
+                       (!state.phaseFilter || state.phaseFilter === 'all' || t.phase === state.phaseFilter) && 
+                       (!state.assigneeFilter || state.assigneeFilter === 'all' || t.assignedTo === state.assigneeFilter);
             });
 
             const phaseProgress = phases.map(phase => {
@@ -94,7 +94,7 @@
                                 </div>
                                 <select onchange="setFilter('status',this.value)" class="p-2 border rounded"><option value="all">All Statuses</option><option>Not Started</option><option>In Progress</option><option>Completed</option></select>
                                 <select onchange="setFilter('phase',this.value)" class="p-2 border rounded"><option value="all">All Phases</option>${phases.map(p => `<option>${p}</option>`).join('')}</select>
-                                <select onchange="setFilter('assignee',this.value)" class="p-2 border rounded"><option value="all">All Team</option><option>Alexa</option><option>Dillon</option><option>Lindsey</option><option>Carson</option><option>Kyle</option><option>StudentWellness Team</option></select>
+                                <select onchange="setFilter('assignee',this.value)" class="p-2 border rounded"><option value="all">All Team</option><option>Alexa</option><option>Dillon</option><option>Lindsey</option><option>Carson</option><option>Kyle</option><option>Emily</option><option>StudentWellness Team</option></select>
                             </div>
                             <div id="form"></div>
                         </div>
@@ -117,7 +117,7 @@
 
         function renderEdit(t) {
             const phases = ['Planning & Design', 'Data Collection', 'Analysis', 'Reporting & Dissemination', 'Stakeholder Engagement'];
-            const members = ['Alexa', 'Dillon', 'Lindsey', 'Carson', 'Kyle', 'StudentWellness Team'];
+            const members = ['Alexa', 'Dillon', 'Lindsey', 'Carson', 'Kyle', 'Emily', 'StudentWellness Team'];
             return `<div class="border-2 border-blue-200 p-4 rounded"><input id="t" value="${t.title}" placeholder="Title" class="w-full p-2 mb-3 border rounded"><textarea id="d" class="w-full p-2 mb-3 border rounded h-20">${t.description || ''}</textarea><div class="grid grid-cols-2 gap-3 mb-3"><select id="ph" class="p-2 border rounded">${phases.map(p => `<option ${t.phase === p ? 'selected' : ''}>${p}</option>`).join('')}</select><select id="pr" class="p-2 border rounded"><option ${t.priority === 'High' ? 'selected' : ''}>High</option><option ${t.priority === 'Medium' ? 'selected' : ''}>Medium</option><option ${t.priority === 'Low' ? 'selected' : ''}>Low</option></select><select id="st" class="p-2 border rounded"><option ${t.status === 'Not Started' ? 'selected' : ''}>Not Started</option><option ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option ${t.status === 'Completed' ? 'selected' : ''}>Completed</option></select><input id="dd" type="date" value="${t.dueDate || ''}" class="p-2 border rounded"></div><select id="as" class="w-full p-2 border rounded mb-3"><option value="">Assign...</option>${members.map(m => `<option ${t.assignedTo === m ? 'selected' : ''}>${m}</option>`).join('')}</select><div class="mb-3"><label class="block text-sm font-medium mb-2">Links</label><div class="flex gap-2 mb-2"><input id="ln" placeholder="Name" class="flex-1 p-2 border rounded"><input id="lu" placeholder="URL" class="flex-1 p-2 border rounded"><button onclick="addL()" class="px-4 py-2 bg-blue-500 text-white rounded">Add</button></div><div id="ll">${t.links?.map(l => `<div class="flex gap-2 p-2 bg-gray-50 rounded mb-1"><a href="${l.url}" target="_blank" class="flex-1 text-blue-600">${l.name}</a><button onclick="remL(${l.id})" class="text-red-500">✕</button></div>`).join('') || ''}</div></div><textarea id="nt" class="w-full p-2 border rounded h-16 mb-3">${t.notes || ''}</textarea><div class="flex gap-2"><button onclick="save()" class="px-4 py-2 bg-green-500 text-white rounded">Save</button><button onclick="cancel()" class="px-4 py-2 bg-gray-300 rounded">Cancel</button></div></div>`;
         }
 
@@ -258,3 +258,4 @@
     </script>
 </body>
 </html>
+
