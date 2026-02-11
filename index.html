@@ -94,7 +94,7 @@
                                 </div>
                                 <select onchange="setFilter('status',this.value)" class="p-2 border rounded"><option value="all">All Statuses</option><option>Not Started</option><option>In Progress</option><option>Completed</option></select>
                                 <select onchange="setFilter('phase',this.value)" class="p-2 border rounded"><option value="all">All Phases</option>${phases.map(p => `<option>${p}</option>`).join('')}</select>
-                                <select onchange="setFilter('assignee',this.value)" class="p-2 border rounded"><option value="all">All Team</option><option>Alexa</option><option>Dillon</option><option>Lindsey</option><option>Carson</option><option>Kyle</option><option>Emily</option><option>StudentWellness Team</option></select>
+                                <select onchange="setFilter('assignee',this.value)" class="p-2 border rounded" id="assigneeFilterSelect"><option value="all">All Team</option><option value="Alexa">Alexa</option><option value="Dillon">Dillon</option><option value="Lindsey">Lindsey</option><option value="Carson">Carson</option><option value="Kyle">Kyle</option><option value="Emily">Emily</option><option value="StudentWellness Team">StudentWellness Team</option></select>
                             </div>
                             <div id="form"></div>
                         </div>
@@ -156,7 +156,12 @@
         }
 
         function setView(v) { state.viewMode = v; render(); }
-        function setFilter(t, v) { state[t + 'Filter'] = v; render(); }
+        function setFilter(t, v) { 
+            if (t === 'status') state.statusFilter = v;
+            if (t === 'phase') state.phaseFilter = v;
+            if (t === 'assignee') state.assigneeFilter = v;
+            render(); 
+        }
         function edit(id) { state.isEditing = true; state.editingTaskId = id; render(); }
         function del(id) { if (confirm('Delete?')) db.ref(`tasks/${id}`).remove(); }
         function cancel() { state.isEditing = false; state.editingTaskId = null; render(); }
@@ -258,4 +263,5 @@
     </script>
 </body>
 </html>
+
 
